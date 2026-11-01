@@ -1,0 +1,8 @@
+PIXL(1.1)
+CANVAS(1, 1)
+TIPE(bit)
+HEX8()
+
+FRAME(1, 10)
+    LAYER(1)
+        pixel(1, 1, FFFFFFFF)

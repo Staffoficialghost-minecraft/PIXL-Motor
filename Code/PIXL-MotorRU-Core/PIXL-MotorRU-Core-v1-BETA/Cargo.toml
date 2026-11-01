@@ -1,0 +1,12 @@
+[package]
+name = "pixl-motorru-core"
+version = "0.1.0"
+edition = "2024"
+description = "PIXL MotorRU Core language processor and normalized IR"
+license = "Apache-2.0"
+
+[lib]
+name = "pixl_motorru_core"
+path = "src/lib.rs"
+
+[dependencies]

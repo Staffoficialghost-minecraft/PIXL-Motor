@@ -1,0 +1,27 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+ENV/
+
+# Rust build output
+target/
+
+# Python build metadata and intermediate files
+build/
+*.egg-info/
+
+# Editor temporary and operating-system files
+*.swp
+*.swo
+*.tmp
+*.temp
+*.log
+Thumbs.db
+.DS_Store

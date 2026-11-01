@@ -1,0 +1,57 @@
+{
+  "version": "corpus-0.1",
+  "cases": [
+    {
+      "file": "valid/basic.pixl",
+      "language": "1.1",
+      "category": "valid",
+      "expected": "valid raster",
+      "pixels": {
+        "1,1": [255, 0, 0, 255],
+        "2,1": [0, 255, 0, 255]
+      }
+    },
+    {
+      "file": "raster/layers.pixl",
+      "language": "1.1",
+      "category": "layers",
+      "expected": "valid raster with declared layer order"
+    },
+    {
+      "file": "svg/vector.pixl",
+      "language": "1.1",
+      "category": "svg",
+      "expected": "valid SVG with width 4 and height 2"
+    },
+    {
+      "file": "animation/basic.pixl",
+      "language": "1.2",
+      "category": "animation",
+      "expected": "two independent frames with durations 10 and 20 ms"
+    },
+    {
+      "file": "geometry/degenerate.pixl",
+      "language": "1.1",
+      "category": "geometry",
+      "expected_diagnostics": ["PIXL039"]
+    },
+    {
+      "file": "geometry/repeated-vertex.pixl",
+      "language": "1.1",
+      "category": "geometry",
+      "expected_diagnostics": ["PIXL038"]
+    },
+    {
+      "file": "invalid/frame-in-11.pixl",
+      "language": "1.1",
+      "category": "invalid",
+      "expected_diagnostics": ["PIXL057"]
+    },
+    {
+      "file": "invalid/empty-animation.pixl",
+      "language": "1.2",
+      "category": "invalid",
+      "expected_diagnostics": ["PIXL056"]
+    }
+  ]
+}

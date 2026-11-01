@@ -1,0 +1,7 @@
+PIXL(1.1)
+CANVAS(4, 2)
+TIPE(vec)
+HEX8()
+
+LAYER(1)
+rect(1-4, 1-2, 112233FF)

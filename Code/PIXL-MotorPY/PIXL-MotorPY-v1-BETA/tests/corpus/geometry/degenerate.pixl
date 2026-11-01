@@ -1,0 +1,7 @@
+PIXL(1.1)
+CANVAS(4, 4)
+TIPE(bit)
+HEX8()
+
+LAYER(1)
+polygon(1, 1, 2, 2, 3, 3, FFFFFFFF, fill)

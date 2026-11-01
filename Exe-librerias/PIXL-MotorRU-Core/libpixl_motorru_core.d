@@ -1,0 +1,1 @@
+C:\Comandos\Mythree\Proyectos\Motors\Code\PIXL-MotorRU-Core\PIXL-MotorRU-Core-v1-BETA\target\release\libpixl_motorru_core.rlib: C:\Comandos\Mythree\Proyectos\Motors\Code\PIXL-MotorRU-Core\PIXL-MotorRU-Core-v1-BETA\src\lib.rs
