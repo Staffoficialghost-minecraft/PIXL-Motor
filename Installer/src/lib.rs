@@ -1,5 +1,6 @@
 pub mod catalog;
 pub mod diagnostics;
+pub mod distribution;
 pub mod github;
 pub mod installation;
 pub mod versions;

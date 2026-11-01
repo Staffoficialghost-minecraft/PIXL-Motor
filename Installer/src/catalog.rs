@@ -1,4 +1,4 @@
-use crate::versions::{Asset, Version};
+use crate::distribution::{Component, Generation};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Product {
@@ -22,63 +22,36 @@ impl Product {
 #[derive(Clone, Debug)]
 pub struct Offer {
     pub product: Product,
-    pub assets: Vec<Asset>,
+    pub components: Vec<Component>,
 }
 
-pub fn catalog(version: &Version) -> Vec<Offer> {
-    let py = version
-        .assets
-        .iter()
-        .filter(|a| {
-            a.name.starts_with("pixl_motorpy-")
-                && (a.name.ends_with(".whl") || a.name.ends_with(".tar.gz"))
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    let core_py = version
-        .assets
-        .iter()
-        .filter(|a| {
-            a.name.starts_with("pixl_motorpy_core-")
-                && (a.name.ends_with(".whl") || a.name.ends_with(".tar.gz"))
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    let exe = version
-        .assets
-        .iter()
-        .filter(|a| a.name.starts_with("PIXL-MotorRU") && a.name.ends_with(".exe"))
-        .cloned()
-        .collect::<Vec<_>>();
-    let rust = version
-        .assets
-        .iter()
-        .filter(|a| a.name == "pixl-motorru-core.tar.gz" || a.name == "pixl-motorru-core.zip")
-        .cloned()
-        .collect::<Vec<_>>();
+pub fn catalog(generation: &Generation) -> Vec<Offer> {
+    let by_id = generation.components_by_id();
     let mut offers = Vec::new();
-    if !py.is_empty() && !core_py.is_empty() {
-        offers.push(Offer {
-            product: Product::MotorPyPip,
-            assets: [py, core_py].concat(),
-        });
+    if let (Some(py), Some(core)) = (by_id.get("motorpy"), by_id.get("motorpy-core")) {
+        if py.dependencies.iter().any(|id| id == "motorpy-core") {
+            offers.push(Offer {
+                product: Product::MotorPyPip,
+                components: vec![(*core).clone(), (*py).clone()],
+            });
+        }
     }
-    if version.source_url.is_some() {
+    if let Some(py) = by_id.get("motorpy") {
         offers.push(Offer {
             product: Product::MotorPyProject,
-            assets: Vec::new(),
+            components: vec![(*py).clone()],
         });
     }
-    if !rust.is_empty() {
+    if let Some(core) = by_id.get("motorru-core") {
         offers.push(Offer {
             product: Product::MotorRuCore,
-            assets: rust,
+            components: vec![(*core).clone()],
         });
     }
-    if !exe.is_empty() {
+    if let Some(motorru) = by_id.get("motorru") {
         offers.push(Offer {
             product: Product::MotorRuExecutable,
-            assets: exe,
+            components: vec![(*motorru).clone()],
         });
     }
     offers
@@ -87,23 +60,12 @@ pub fn catalog(version: &Version) -> Vec<Offer> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::distribution::Manifest;
+
     #[test]
-    fn only_complete_pip_offer_is_available() {
-        let v = Version {
-            name: "v".into(),
-            tag: "v".into(),
-            description: String::new(),
-            published_at: None,
-            prerelease: false,
-            source_url: None,
-            from_release: true,
-            assets: vec![Asset {
-                name: "pixl_motorpy-0.1-py3-none-any.whl".into(),
-                size: 1,
-                url: "x".into(),
-                digest: None,
-            }],
-        };
-        assert!(catalog(&v).is_empty());
+    fn complete_generation_exposes_all_modalities() {
+        let text = include_str!("../../distribution/manifest.json");
+        let manifest = Manifest::parse(text).unwrap();
+        assert_eq!(catalog(manifest.latest_complete().unwrap()).len(), 4);
     }
 }

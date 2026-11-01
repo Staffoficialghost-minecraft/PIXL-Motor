@@ -1,132 +1,113 @@
 use crate::diagnostics::{Error, Result};
-use crate::versions::{Asset, Version};
+use crate::distribution::Manifest;
 use reqwest::blocking::Client;
 use serde::Deserialize;
+use std::path::Path;
 
 #[derive(Debug, Deserialize)]
-struct Release {
-    tag_name: String,
-    name: String,
-    body: Option<String>,
-    published_at: Option<String>,
-    prerelease: bool,
-    draft: bool,
-    assets: Vec<ReleaseAsset>,
-    tarball_url: Option<String>,
+struct RefResponse {
+    object: RefObject,
 }
 
 #[derive(Debug, Deserialize)]
-struct ReleaseAsset {
-    name: String,
-    size: u64,
-    browser_download_url: String,
-    digest: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Tag {
-    name: String,
-    tarball_url: String,
+struct RefObject {
+    sha: String,
 }
 
 pub struct GithubClient {
     client: Client,
-    base_url: String,
+    api_url: String,
+    owner: String,
+    repository: String,
 }
 
 impl GithubClient {
     pub fn official() -> Result<Self> {
-        Self::new("https://api.github.com")
+        Self::new(
+            "https://api.github.com",
+            "Staffoficialghost-minecraft",
+            "PIXL-Motor",
+        )
     }
 
-    pub fn new(base_url: &str) -> Result<Self> {
+    pub fn new(api_url: &str, owner: &str, repository: &str) -> Result<Self> {
         let client = Client::builder()
-            .user_agent("PIXL-Motor-Installer/0.1")
+            .user_agent("PIXL-Motor-Installer/0.2")
             .build()
             .map_err(|e| Error::new("GITHUB001", e.to_string()))?;
         Ok(Self {
             client,
-            base_url: base_url.trim_end_matches('/').to_string(),
+            api_url: api_url.trim_end_matches('/').to_string(),
+            owner: owner.to_string(),
+            repository: repository.to_string(),
         })
     }
 
-    pub fn versions(&self, owner: &str, repo: &str) -> Result<Vec<Version>> {
-        let releases_url = format!("{}/repos/{owner}/{repo}/releases", self.base_url);
-        let response =
-            self.client.get(&releases_url).send().map_err(|e| {
-                Error::new("GITHUB001", format!("no se pudo consultar Releases: {e}"))
-            })?;
-        if response.status().is_success() {
-            let releases: Vec<Release> = response.json().map_err(|e| {
-                Error::new("GITHUB002", format!("respuesta de Releases inválida: {e}"))
-            })?;
-            let versions: Vec<Version> = releases
-                .into_iter()
-                .filter(|r| !r.draft)
-                .map(|r| Version {
-                    name: if r.name.is_empty() {
-                        r.tag_name.clone()
-                    } else {
-                        r.name
-                    },
-                    tag: r.tag_name,
-                    description: r.body.unwrap_or_default(),
-                    published_at: r.published_at,
-                    prerelease: r.prerelease,
-                    assets: r
-                        .assets
-                        .into_iter()
-                        .map(|a| Asset {
-                            name: a.name,
-                            size: a.size,
-                            url: a.browser_download_url,
-                            digest: a.digest,
-                        })
-                        .collect(),
-                    source_url: r.tarball_url,
-                    from_release: true,
-                })
-                .collect();
-            if !versions.is_empty() {
-                return Ok(versions);
-            }
-        } else if response.status().as_u16() != 404 {
-            return Err(Error::new(
+    pub fn revision(&self) -> Result<String> {
+        let url = format!(
+            "{}/repos/{}/{}/git/ref/heads/main",
+            self.api_url, self.owner, self.repository
+        );
+        let response = self.client.get(url).send().map_err(|e| {
+            Error::new(
                 "GITHUB001",
-                format!("GitHub respondió {}", response.status()),
-            ));
-        }
-        let tags_url = format!("{}/repos/{owner}/{repo}/tags", self.base_url);
-        let response = self
-            .client
-            .get(tags_url)
-            .send()
-            .map_err(|e| Error::new("GITHUB001", format!("no se pudo consultar Tags: {e}")))?;
+                format!("no se pudo consultar la rama main: {e}"),
+            )
+        })?;
         if !response.status().is_success() {
             return Err(Error::new(
                 "GITHUB001",
-                format!("GitHub respondió {}", response.status()),
+                format!("GitHub respondió {} al consultar main", response.status()),
             ));
         }
-        let tags: Vec<Tag> = response
-            .json()
-            .map_err(|e| Error::new("GITHUB002", format!("respuesta de Tags inválida: {e}")))?;
-        Ok(tags
-            .into_iter()
-            .map(|t| Version {
-                name: t.name.clone(),
-                tag: t.name,
-                description: String::new(),
-                published_at: None,
-                prerelease: false,
-                assets: Vec::new(),
-                source_url: Some(t.tarball_url),
-                from_release: false,
-            })
-            .collect())
+        response
+            .json::<RefResponse>()
+            .map(|data| data.object.sha)
+            .map_err(|e| Error::new("GITHUB002", format!("respuesta de main inválida: {e}")))
     }
 
-    pub fn download(&self, url: &str, destination: &std::path::Path) -> Result<u64> {
+    pub fn manifest(&self, revision: &str) -> Result<Manifest> {
+        let url = self.raw_url(revision, "distribution/manifest.json");
+        let response = self.client.get(url).send().map_err(|e| {
+            Error::new(
+                "MANIFEST001",
+                format!("no se pudo descargar el manifiesto: {e}"),
+            )
+        })?;
+        if !response.status().is_success() {
+            return Err(Error::new(
+                "MANIFEST001",
+                format!("manifiesto HTTP {}", response.status()),
+            ));
+        }
+        let text = response
+            .text()
+            .map_err(|e| Error::new("MANIFEST001", e.to_string()))?;
+        Manifest::parse(&text)
+    }
+
+    pub fn raw_url(&self, revision: &str, path: &str) -> String {
+        if self.api_url == "https://api.github.com" {
+            format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                self.owner, self.repository, revision, path
+            )
+        } else {
+            format!(
+                "{}/{}/{}/{}/{}",
+                self.api_url, self.owner, self.repository, revision, path
+            )
+        }
+    }
+
+    pub fn archive_url(&self, revision: &str) -> String {
+        format!(
+            "{}/repos/{}/{}/zipball/{}",
+            self.api_url, self.owner, self.repository, revision
+        )
+    }
+
+    pub fn download(&self, url: &str, destination: &Path) -> Result<u64> {
         let mut response = self
             .client
             .get(url)
@@ -149,13 +130,29 @@ impl GithubClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn parses_release_assets_and_falls_back_to_tags() {
+    fn parses_main_revision() {
         let mut server = mockito::Server::new();
-        let _m = server.mock("GET", "/repos/a/b/releases").with_status(200)
-            .with_body(r#"[{"tag_name":"v1","name":"v1","body":"","published_at":null,"prerelease":false,"draft":false,"assets":[{"name":"x.whl","size":2,"browser_download_url":"http://x","digest":"sha256:abc"}],"tarball_url":"http://src"}]"#).create();
-        let client = GithubClient::new(&server.url()).unwrap();
-        let versions = client.versions("a", "b").unwrap();
-        assert_eq!(versions[0].assets[0].name, "x.whl");
+        let _mock = server
+            .mock("GET", "/repos/a/b/git/ref/heads/main")
+            .with_status(200)
+            .with_body(r#"{"object":{"sha":"abc123"}}"#)
+            .create();
+        let client = GithubClient::new(&server.url(), "a", "b").unwrap();
+        assert_eq!(client.revision().unwrap(), "abc123");
+    }
+
+    #[test]
+    fn keeps_manifest_and_assets_on_the_same_revision() {
+        let client = GithubClient::new("http://mock", "a", "b").unwrap();
+        assert_eq!(
+            client.raw_url("abc123", "distribution/manifest.json"),
+            "http://mock/a/b/abc123/distribution/manifest.json"
+        );
+        assert_eq!(
+            client.archive_url("abc123"),
+            "http://mock/repos/a/b/zipball/abc123"
+        );
     }
 }

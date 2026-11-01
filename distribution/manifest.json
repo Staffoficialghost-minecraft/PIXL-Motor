@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "generations": [
+    {
+      "id": "PIXL-Motor-v1-BETA",
+      "name": "PIXL Motor v1 BETA",
+      "status": "published",
+      "components": [
+        {
+          "id": "motorpy",
+          "version": "0.1.0",
+          "distribution": "source",
+          "path": "Code/PIXL-MotorPY/PIXL-MotorPY-v1-BETA",
+          "format": "source-tree",
+          "dependencies": ["motorpy-core"]
+        },
+        {
+          "id": "motorpy-core",
+          "version": "0.1.0",
+          "distribution": "source",
+          "path": "Code/PIXL-MotorPY-Core/PIXL-MotorPY-Core-v1-BETA",
+          "format": "source-tree",
+          "dependencies": []
+        },
+        {
+          "id": "motorru",
+          "version": "0.1.0",
+          "distribution": "binary",
+          "path": "Exe-librerias/PIXL-MotorRU-Latest.exe",
+          "format": "exe",
+          "dependencies": []
+        },
+        {
+          "id": "motorru-core",
+          "version": "0.1.0",
+          "distribution": "source",
+          "path": "Code/PIXL-MotorRU-Core/PIXL-MotorRU-Core-v1-BETA",
+          "format": "source-tree",
+          "dependencies": []
+        }
+      ]
+    }
+  ]
+}
